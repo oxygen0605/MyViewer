@@ -7,13 +7,16 @@
 import PySimpleGUI as sg
 #import subprocess
 
-
+##
+init_text = ""
 
 ###### Model
 def read_text_file(values):
+    global init_text
     try:
         with open(values["filename"], 'r', encoding='utf-8') as f:
             text = f.read()
+            init_text = text
             state = "updated"
     except Exception as e:
         text = e
@@ -25,7 +28,7 @@ def save_text_file(values):
     try:
         with open(values["filename"]+".txt", 'w', encoding='utf-8') as f:
             f.write(window['text_box'].Get())
-            text = "This file is saved at "+ values["filename"].split()[-1]
+            text = "This text is saved at \""+ values["filename"] +"\""
             state = "saved"
     except Exception as e:
         text = e
@@ -41,6 +44,19 @@ def is_file_exists(values):
     else :
         text = "saving"
         state = "saving"
+
+    return state, text
+
+def is_this_file_modified(values):
+    global init_text
+    current_text = window['text_box'].Get()[:-1] #最終行に'\n'が自動で付与されるのでそれを取り除く
+    
+    if (init_text != "") and (init_text != current_text):
+        text = "This file is modified. Would you read another file?"
+        state = "confirm_read"
+    else:
+        text = "reading"
+        state = "reading"
 
     return state, text
 
@@ -83,17 +99,34 @@ def exe_save_popup(text):
     popup_window.close()
     return status
 
+def exe_read_popup(text):
+    popup_layout = [[sg.Text(text)], [sg.Button("OK", key="notify_ok"), sg.Button("Cancel", key="notify_cancel")]]
+    popup_window = sg.Window(title='Save Confirmation',layout=popup_layout)
+    event, values = popup_window.read()
+
+    if event in ('notify_cancel', None):
+        status = "idle"
+    else:
+        status = "reading"
+
+    popup_window.close()
+    return status
+
 ##### Presenter
 event_handler = {
-        'notify_read':[read_text_file],
+        'notify_read':[is_this_file_modified],
         'notify_save':[is_file_exists],
+        'read_file':[read_text_file],
         'save_file':[save_text_file]
         }
 
 view_handler = {
         'idle'   :[],
+        'confirm_read':[exe_read_popup],
+        'reading':[],
         'updated':[update_text_box, clear_log_box],
         'confirm_overwrite':[exe_save_popup],
+        'saving':[],
         'saved':[update_log_box],
         'error'  :[update_log_box, clear_text_box]
         }
@@ -119,6 +152,8 @@ while True:
 
         if state == 'saving':
             event = 'save_file'
+        elif state =='reading':
+            event = 'read_file'
 
         if state in ('idle', 'updated', 'saved', 'error'):
             break
