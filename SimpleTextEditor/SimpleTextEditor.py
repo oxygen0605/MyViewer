@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-
+author: oxygen0605
 """
-
 
 import PySimpleGUI as sg
 #import subprocess
@@ -11,7 +10,7 @@ import PySimpleGUI as sg
 init_text = ""
 
 ###### Model
-def read_text_file(values):
+def load_text_file(values):
     global init_text
     try:
         with open(values["filename"], 'r', encoding='utf-8') as f:
@@ -52,11 +51,11 @@ def is_this_file_modified(values):
     current_text = window['text_box'].Get()[:-1] #最終行に'\n'が自動で付与されるのでそれを取り除く
     
     if (init_text != "") and (init_text != current_text):
-        text = "This file is modified. Would you read another file?"
-        state = "confirm_read"
+        text = "This file is modified. Would you load another file?"
+        state = "confirm_load"
     else:
-        text = "reading"
-        state = "reading"
+        text = "loading"
+        state = "loading"
 
     return state, text
 
@@ -64,7 +63,7 @@ def is_this_file_modified(values):
 memu_bar = [sg.Text("ファイル"), 
                  sg.InputText(size=(75,1), key="filename"), 
                  sg.FileBrowse("選択", key="select", target="filename"), 
-                 sg.Submit("読込",key='notify_read'), sg.Button("保存", key="notify_save")]
+                 sg.Submit("読込",key='notify_load'), sg.Button("保存", key="notify_save")]
 text_frame = [sg.Frame('テキスト内容',[[sg.Output(size=(100,15),key='text_box')]])]
 log_frame = [sg.Frame('ログ出力',[[sg.Output(size=(100,10),key='log_box')]])]
 main_layout = [memu_bar, text_frame, log_frame]
@@ -79,53 +78,50 @@ def update_log_box(text):
     return 'idle'
 
 def clear_text_box(text):
-    window['text_box'].update([])
+    window['text_box'].update("")
     return 'idle'
 
 def clear_log_box(text):
-    window['log_box'].update([])
+    window['log_box'].update("")
     return 'idle'
 
-def exe_save_popup(text):
+def exe_popup(text):
     popup_layout = [[sg.Text(text)], [sg.Button("OK", key="notify_ok"), sg.Button("Cancel", key="notify_cancel")]]
     popup_window = sg.Window(title='Save Confirmation',layout=popup_layout)
     event, values = popup_window.read()
 
     if event in ('notify_cancel', None):
-        status = "idle"
+        ret = False
     else:
-        status = "saving"
+        ret = True
 
     popup_window.close()
+    return ret
+
+def confirm_save(text):
+    status = "idle"
+    if exe_popup(text): status = "saving"
     return status
 
-def exe_read_popup(text):
-    popup_layout = [[sg.Text(text)], [sg.Button("OK", key="notify_ok"), sg.Button("Cancel", key="notify_cancel")]]
-    popup_window = sg.Window(title='Save Confirmation',layout=popup_layout)
-    event, values = popup_window.read()
-
-    if event in ('notify_cancel', None):
-        status = "idle"
-    else:
-        status = "reading"
-
-    popup_window.close()
+def confirm_load(text):
+    status = "idle"
+    if exe_popup(text): status = "loading"
     return status
 
 ##### Presenter
 event_handler = {
-        'notify_read':[is_this_file_modified],
+        'notify_load':[is_this_file_modified],
         'notify_save':[is_file_exists],
-        'read_file':[read_text_file],
+        'load_file':[load_text_file],
         'save_file':[save_text_file]
         }
 
 view_handler = {
         'idle'   :[],
-        'confirm_read':[exe_read_popup],
-        'reading':[],
+        'confirm_load':[confirm_load],
+        'loading':[],
         'updated':[update_text_box, clear_log_box],
-        'confirm_overwrite':[exe_save_popup],
+        'confirm_overwrite':[confirm_save],
         'saving':[],
         'saved':[update_log_box],
         'error'  :[update_log_box, clear_text_box]
@@ -152,8 +148,8 @@ while True:
 
         if state == 'saving':
             event = 'save_file'
-        elif state =='reading':
-            event = 'read_file'
+        elif state =='loading':
+            event = 'load_file'
 
         if state in ('idle', 'updated', 'saved', 'error'):
             break
